@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Before bed card harness</title>
+<style>
+  html { font-family: Roboto, "Helvetica Neue", Arial, sans-serif; }
+  body { margin: 0; padding: 24px; background: var(--primary-background-color); color: var(--primary-text-color); }
+  h2 { font-size: 13px; font-weight: 500; margin: 24px 0 8px; color: var(--secondary-text-color); }
+  h2:first-child { margin-top: 0; }
+  .row { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+  .slot { flex: none; }
+  .theme-light {
+    --primary-background-color: #F3F6F4; --card-background-color: #FFFFFF; --ha-card-border-color: #D5DED9;
+    --divider-color: #E1E7E3; --primary-text-color: #101A15; --secondary-text-color: #56645D; --primary-color: #1E9665;
+    --success-color: #1E9665;
+  }
+  .theme-dark {
+    --primary-background-color: #0A0F0D; --card-background-color: #141C18; --ha-card-border-color: #27332D;
+    --divider-color: #222C27; --primary-text-color: #EEF4F0; --secondary-text-color: #A7B5AE; --primary-color: #30B77E;
+    --success-color: #4FD19A;
+  }
+  .theme-ha-dark {
+    --primary-background-color: #111111; --card-background-color: #1C1C1C; --ha-card-border-color: #333333;
+    --divider-color: rgba(225, 225, 225, 0.12); --primary-text-color: #E1E1E1; --secondary-text-color: #9B9B9B; --primary-color: #03A9F4;
+  }
+  #results { white-space: pre-wrap; font: 12px monospace; }
+</style>
+</head>
+<body>
+<script type="module">
+  import { IDS, NOW, makeHass } from "./fixtures.mjs";
+
+  // The sample is thirty nights up to one fixed morning, so the card runs at that moment.
+  Date.now = () => NOW;
+  await import("../dist/life-dashboard-before-bed-card.js");
+
+  class FakeHaCard extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({ mode: "open" }).innerHTML = `<style>
+        :host { display: block; background: var(--ha-card-background, var(--card-background-color, #fff));
+          border: var(--ha-card-border-width, 1px) solid var(--ha-card-border-color, #e0e0e0);
+          border-radius: var(--ha-card-border-radius, 12px); color: var(--primary-text-color); }
+      </style><slot></slot>`;
+    }
+  }
+  if (!customElements.get("ha-card")) customElements.define("ha-card", FakeHaCard);
+
+  const TAG = "life-dashboard-before-bed-card";
+  const params = new URLSearchParams(location.search);
+  const theme = params.get("theme") || "light";
+  document.documentElement.className = `theme-${theme}`;
+  document.documentElement.dir = params.get("dir") || "ltr";
+
+  const base = { sleep_entity: IDS.sleep, screen_entity: IDS.interactive };
+  const cases = {
+    interactive: { title: "Screen on/off sensor and a sleep sensor", config: base },
+    counter: { title: "Estimate from the day total (Life Dashboard today)", config: { ...base, screen_entity: IDS.counter } },
+    slots: { title: "Slots with apps (the app, later)", config: { ...base, screen_entity: IDS.slots } },
+    companion: { title: "Companion app only: bedtime, wake-up and interactive", config: { sleep_entity: IDS.bedtime, wake_entity: IDS.wake, screen_entity: IDS.interactive } },
+    tendays: { title: "Ten days in the recorder", config: base, hass: { keepDays: 10 } },
+    short: { title: "Thirty minutes, five nights, no comparison", config: { ...base, window: 30, nights: 5, compare: false } },
+    pick: { title: "Nothing chosen yet", config: {} },
+    missing: { title: "A sensor that does not exist", config: { ...base, screen_entity: "binary_sensor.gone" } },
+    none: { title: "No nights at all", config: base, hass: { count: 0 } },
+  };
+
+  function hassFor(options = {}) {
+    return makeHass({
+      language: params.get("lang") || "en-GB",
+      timeFormat: params.get("hours") || "language",
+      dark: theme !== "light",
+      ...options,
+    });
+  }
+
+  function mount(id, width, extra = {}) {
+    const card = document.createElement(TAG);
+    card.setConfig({ ...cases[id].config, ...extra });
+    const slot = document.createElement("div");
+    slot.className = "slot";
+    slot.style.width = `${width}px`;
+    slot.append(card);
+    card.hass = hassFor(cases[id].hass);
+    return slot;
+  }
+
+  const settle = () => new Promise((done) => setTimeout(done, 80));
+
+  async function runChecks() {
+    const out = [];
+    const check = (name, ok, detail = "") => out.push({ name, ok: Boolean(ok), detail: String(detail) });
+    const place = (id, width, extra) => { const slot = mount(id, width, extra); document.body.append(slot); return slot.firstChild; };
+
+    const card = place("interactive", 360);
+    check("loading shows before the history arrives", card.shadowRoot.textContent.includes("Loading the last nights"));
+    await settle();
+    const sr = card.shadowRoot;
+    const rows = () => [...sr.querySelectorAll("button.row")];
+    check("seven nights on the timeline", rows().length === 7, rows().length);
+    check("every row says its night in words", rows().every((row) => /before sleep, asleep at \d\d:\d\d for \d+h/.test(row.getAttribute("aria-label"))), rows()[0]?.getAttribute("aria-label"));
+    check("the newest night is the one shown", rows()[6].getAttribute("aria-pressed") === "true" && rows().filter((row) => row.getAttribute("aria-pressed") === "true").length === 1);
+    check("each row has its window, its sleep and its screen marks", rows().every((row) => row.querySelector(".win") && row.querySelector(".sl") && row.querySelector(".ph")));
+    const sleepBar = rows()[6].querySelector(".sl").getBoundingClientRect();
+    const windowBar = rows()[6].querySelector(".win").getBoundingClientRect();
+    check("the window ends where the sleep begins", Math.abs(windowBar.right - sleepBar.left) < 1.5, `${windowBar.right} ${sleepBar.left}`);
+    const heroBefore = sr.querySelector(".box .v").textContent;
+    const subtitleBefore = sr.querySelector(".head .s").textContent;
+    rows()[2].click();
+    check("a click shows that night", rows()[2].getAttribute("aria-pressed") === "true" && sr.querySelector(".head .s").textContent !== subtitleBefore, `${heroBefore} -> ${sr.querySelector(".box .v").textContent}`);
+    check("the comparison is a table with both groups", sr.querySelectorAll(".cmp tbody tr").length === 2 && /Last 30 nights/.test(sr.querySelector(".cmp caption").textContent) && /nights/.test(sr.querySelector(".cmp thead").textContent));
+    check("the comparison says what it is not", /not what caused it/.test(sr.querySelector(".cmp .note").textContent));
+    check("no horizontal overflow at 360px", sr.querySelector(".root").scrollWidth <= sr.querySelector(".root").clientWidth + 1, `${sr.querySelector(".root").scrollWidth}/${sr.querySelector(".root").clientWidth}`);
+    const labels = [...sr.querySelectorAll(".ticks span")].map((tick) => tick.getBoundingClientRect()).filter((box) => box.width > 0);
+    let overlaps = 0;
+    for (let i = 1; i < labels.length; i += 1) if (labels[i].left < labels[i - 1].right + 2) overlaps += 1;
+    const ticksBox = sr.querySelector(".ticks").getBoundingClientRect();
+    check("tick labels do not overlap at phone width", overlaps === 0 && labels.length >= 3, `${labels.length} labels`);
+    check("tick labels stay inside the axis", labels.every((label) => label.left >= ticksBox.left - 1 && label.right <= ticksBox.right + 1));
+
+    const renders = card._renders;
+    const calls = card.hass.calls.length;
+    card.hass = { ...card.hass };
+    card.hass = { ...card.hass, states: { ...card.hass.states, [IDS.interactive]: { ...card.hass.states[IDS.interactive], state: "on", last_updated: "x" } } };
+    await settle();
+    check("the screen switching on reads no history and draws nothing again", card._renders === renders && card.hass.calls.length === calls, `${renders}->${card._renders}, ${calls}->${card.hass.calls.length}`);
+    card.hass = { ...card.hass, states: { ...card.hass.states, [IDS.sleep]: { ...card.hass.states[IDS.sleep], last_updated: "new night" } } };
+    await settle();
+    check("a new night reads the history again", card.hass.calls.length === calls + 2, card.hass.calls.length - calls);
+
+    const narrow = place("interactive", 240);
+    await settle();
+    check("no horizontal overflow at 240px", narrow.shadowRoot.querySelector(".root").scrollWidth <= narrow.shadowRoot.querySelector(".root").clientWidth + 1);
+
+    const counter = place("counter", 420);
+    await settle();
+    check("an estimate says it is one", /estimated/.test(counter.shadowRoot.querySelector(".box .k").textContent) && counter.shadowRoot.querySelector(".foot") !== null && counter.shadowRoot.querySelector(".row .m").textContent.startsWith("~"));
+    check("an estimate draws lighter marks", counter.shadowRoot.querySelectorAll(".ph.est").length > 7);
+
+    const slots = place("slots", 420);
+    await settle();
+    check("slots show the apps of the last hour", slots.shadowRoot.querySelectorAll(".app").length >= 2 && /YouTube|Reddit|WhatsApp|Instagram|Chrome/.test(slots.shadowRoot.querySelector(".apps").textContent), slots.shadowRoot.querySelector(".apps")?.textContent);
+    check("slots are not called an estimate", !/estimated/.test(slots.shadowRoot.textContent) && slots.shadowRoot.querySelector(".foot") === null);
+
+    const companion = place("companion", 420);
+    await settle();
+    check("bedtime and wake-up sensors draw seven nights", companion.shadowRoot.querySelectorAll("button.row").length === 7);
+
+    const ten = place("tendays", 420);
+    await settle();
+    check("ten days of history fill the timeline and hold back the comparison", ten.shadowRoot.querySelectorAll("button.row").length === 7 && ten.shadowRoot.querySelector(".cmp table") === null && /once both groups have 5 nights/.test(ten.shadowRoot.querySelector(".cmp").textContent));
+
+    const short = place("short", 420);
+    await settle();
+    check("the options change the window, the rows and the comparison", short.shadowRoot.querySelectorAll("button.row").length === 5 && /30 min/.test(short.shadowRoot.querySelector(".box .k").textContent) && short.shadowRoot.querySelector(".cmp") === null);
+
+    const pick = place("pick", 400);
+    check("no sensors chosen asks for them", pick.shadowRoot.textContent.includes("Choose your sensors"));
+    const missing = place("missing", 400);
+    check("a missing sensor is named", missing.shadowRoot.textContent.includes("binary_sensor.gone"));
+    const none = place("none", 400);
+    await settle();
+    check("no nights says so and names the sleep sensor", none.shadowRoot.textContent.includes("No nights yet") && none.shadowRoot.textContent.includes(IDS.sleep));
+
+    // Attribute values and settings must never become markup.
+    window.__pwned = undefined;
+    const hostile = document.createElement(TAG);
+    const hostileSlot = document.createElement("div");
+    hostileSlot.style.width = "420px";
+    hostileSlot.append(hostile);
+    document.body.append(hostileSlot);
+    hostile.setConfig({ ...cases.slots.config, title: '<img src=x onerror="window.__pwned=1">' });
+    const hostileHass = hassFor();
+    for (const slot of hostileHass.states[IDS.slots].attributes.slots) {
+      for (const app of slot.apps) app.name = '<img src=x onerror="window.__pwned=2">';
+    }
+    hostile.hass = hostileHass;
+    await settle();
+    check("hostile values create no elements", hostile.shadowRoot.querySelectorAll("img").length === 0 && window.__pwned === undefined);
+    check("a hostile title and app name render as text", hostile.shadowRoot.querySelector(".head .t").textContent.includes("<img") && hostile.shadowRoot.querySelector(".app .n").textContent.includes("<img"));
+
+    const dutch = document.createElement(TAG);
+    const dutchSlot = document.createElement("div");
+    dutchSlot.style.width = "420px";
+    dutchSlot.append(dutch);
+    document.body.append(dutchSlot);
+    dutch.setConfig(base);
+    dutch.hass = makeHass({ language: "nl", timeFormat: "12" });
+    await settle();
+    check("the language and the 12-hour clock follow the profile", dutch.shadowRoot.querySelector(".head .t").textContent === "Voor het slapen" && /[ap]\.?m\.?/i.test(dutch.shadowRoot.querySelector(".ticks").textContent), dutch.shadowRoot.querySelector(".ticks").textContent);
+
+    const rtlSlot = mount("interactive", 420);
+    rtlSlot.dir = "rtl";
+    document.body.append(rtlSlot);
+    await settle();
+    const rtl = rtlSlot.firstChild.shadowRoot;
+    const day = rtl.querySelector(".row .d").getBoundingClientRect();
+    const track = rtl.querySelector(".track").getBoundingClientRect();
+    check("rtl puts the dates on the right of the timeline", day.left >= track.right - 1, `${day.left} ${track.right}`);
+    check("rtl keeps the time axis running left to right", getComputedStyle(rtl.querySelector(".track")).direction === "ltr" && getComputedStyle(rtl.querySelector(".ticks")).direction === "ltr");
+
+    const Card = customElements.get(TAG);
+    const stub = Card.getStubConfig(hassFor());
+    check("getStubConfig finds a sleep and a screen sensor", stub.sleep_entity === IDS.sleep && stub.screen_entity === IDS.interactive, JSON.stringify(stub));
+    check("registered in window.customCards", window.customCards.some((entry) => entry.type === TAG));
+    check("grid options are auto height", card.getGridOptions().rows === "auto");
+    let threw = false;
+    try { document.createElement(TAG).setConfig({ sleep_entity: 5 }); } catch { threw = true; }
+    check("setConfig rejects an entity that is not text", threw);
+
+    let changed = null;
+    class FakeHaForm extends HTMLElement {}
+    customElements.define("ha-form", FakeHaForm);
+    const editor = Card.getConfigElement();
+    document.body.append(editor);
+    editor.setConfig(base);
+    editor.hass = hassFor();
+    editor.addEventListener("config-changed", (event) => { changed = event.detail.config; });
+    const form = editor.shadowRoot.querySelector("ha-form");
+    const names = () => form.schema.map((item) => item.name).join();
+    check("editor offers every option", names() === "sleep_entity,screen_entity,title,window,nights,threshold,compare", names());
+    check("editor labels are words", form.computeLabel({ name: "sleep_entity" }) === "Sleep sensor" && form.computeLabel({ name: "compare" }) === "Compare the last 30 nights");
+    form.dispatchEvent(new CustomEvent("value-changed", { detail: { value: { title: "Evenings", window: 45 } } }));
+    check("editor emits config-changed", changed?.title === "Evenings" && changed.window === 45 && changed.sleep_entity === IDS.sleep, JSON.stringify(changed));
+    editor.setConfig({ ...base, sleep_entity: IDS.bedtime });
+    check("a bedtime sensor asks for the wake-up sensor", names().startsWith("sleep_entity,wake_entity,screen_entity"), names());
+
+    const fails = out.filter((result) => !result.ok);
+    const pre = document.createElement("pre");
+    pre.id = "results";
+    pre.textContent = `CHECKS ${out.length - fails.length}/${out.length}\n` + out.map((result) => `${result.ok ? "PASS" : "FAIL"}  ${result.name}  [${result.detail}]`).join("\n");
+    document.body.replaceChildren(pre);
+  }
+
+  if (params.has("check")) {
+    runChecks();
+  } else if (params.has("one")) {
+    document.body.append(mount(params.get("one"), Number(params.get("width") || 480)));
+    if (params.get("pick")) {
+      setTimeout(() => document.querySelector(TAG).shadowRoot.querySelectorAll("button.row")[Number(params.get("pick"))]?.click(), 200);
+    }
+  } else {
+    for (const [id, item] of Object.entries(cases)) {
+      const heading = document.createElement("h2");
+      heading.textContent = item.title;
+      const row = document.createElement("div");
+      row.className = "row";
+      row.append(mount(id, 480), mount(id, 340));
+      document.body.append(heading, row);
+    }
+  }
+</script>
+</body>
+</html>

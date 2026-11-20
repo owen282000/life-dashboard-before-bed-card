@@ -1,0 +1,11 @@
+{
+  "name": "life-dashboard-before-bed-card",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A Home Assistant dashboard card for the screen time in the last hour before sleep, next to the night that followed.",
+  "scripts": {
+    "test": "node --test test/data.test.mjs"
+  },
+  "license": "MIT"
+}

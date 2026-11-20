@@ -1,0 +1,52 @@
+name: Bug report
+description: The card draws something wrong or does not load
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you expected, and what the card did. A screenshot helps; hide anything you would rather keep private.
+    validations:
+      required: true
+  - type: dropdown
+    id: sleep
+    attributes:
+      label: Where does the sleep come from?
+      options:
+        - Life Dashboard integration
+        - The official Android Companion app
+        - A bed sensor or a helper that is on while asleep
+        - Something else
+    validations:
+      required: true
+  - type: dropdown
+    id: screen
+    attributes:
+      label: Where does the screen time come from?
+      options:
+        - The Companion app's interactive sensor
+        - Life Dashboard's screen time today
+        - history_stats or another counting sensor
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: The card, Home Assistant, and the integration or Companion app.
+      placeholder: "Card 0.1.0, Home Assistant 2026.11.1, integration 1.2.0"
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser or app
+      placeholder: "Chrome on a laptop, or the Companion app on a phone"
+  - type: textarea
+    id: config
+    attributes:
+      label: The card's YAML
+      description: With made-up entity names if you would rather not share yours.
+      render: yaml
