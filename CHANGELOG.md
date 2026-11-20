@@ -6,6 +6,8 @@ All notable changes to this card are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-20
+
 ### Added
 
 - First version: the last nights on one timeline, each with the time asleep, the screen time around it and the last hour before sleep marked, and the minutes of screen in that hour
