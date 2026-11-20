@@ -34,8 +34,9 @@
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/owen282000/life-dashboard-before-bed-card/main/docs/readme-hero-light.png">
+    <source media="(max-width: 600px) and (prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/owen282000/life-dashboard-before-bed-card/main/docs/readme-hero-phone-light.png">
     <source media="(max-width: 600px)" srcset="https://raw.githubusercontent.com/owen282000/life-dashboard-before-bed-card/main/docs/readme-hero-phone.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/owen282000/life-dashboard-before-bed-card/main/docs/readme-hero-light.png">
     <img src="https://raw.githubusercontent.com/owen282000/life-dashboard-before-bed-card/main/docs/readme-hero.png" alt="The card: 50 minutes of screen in the last hour before sleep, 6h 52m asleep, seven nights as rows on a timeline, and a table of the last 30 nights" width="560">
   </picture>
   <br><sub>Sample data from a made-up phone. Each row runs from 21:00 to 09:00 with the screen-on moments, the last hour before sleep shaded and the night as a bar. The table sets 12 calm evenings against 18 others.</sub>
@@ -68,7 +69,7 @@ The card also works without the app. On Android, Home Assistant's Companion app 
 
 ### Through the Home Assistant Marketplace
 
-The card is not in the Marketplace's default list yet, so you add it as a custom repository first. In **Settings > Marketplace** (HACS before Home Assistant 2026.11), open the three dots, **Custom repositories**, and add `https://github.com/owen282000/life-dashboard-before-bed-card` as the type **Dashboard**. Then search for **Life Dashboard Before Bed** and download it. The button opens the repository in your Home Assistant:
+The card is not in the Marketplace's default list yet, so you add it as a custom repository first. In **Settings > Marketplace** (HACS before Home Assistant 2026.11), open the three dots, **Custom repositories**, and add `https://github.com/owen282000/life-dashboard-before-bed-card` as the type **Dashboard**. Then search for **Life Dashboard Before Bed Card** and download it. The button opens the repository in your Home Assistant:
 
 [![Open your Home Assistant instance and open this repository in the Marketplace](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=owen282000&repository=life-dashboard-before-bed-card&category=plugin)
 

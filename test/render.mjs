@@ -30,11 +30,12 @@ const server = createServer((request, response) => {
 await new Promise((done) => server.listen(0, "127.0.0.1", done));
 const base = `http://127.0.0.1:${server.address().port}/test/harness.html`;
 
-// The first three are the README's pictures: copy them into docs/ when the card's look changes.
+// The first four are the README's pictures: copy them into docs/ when the card's look changes.
 const shots = [
   ["readme-hero", "?theme=dark&one=interactive&width=520", 568, 560],
   ["readme-hero-light", "?theme=light&one=interactive&width=520", 568, 560],
   ["readme-hero-phone", "?theme=dark&one=interactive&width=360", 408, 600],
+  ["readme-hero-phone-light", "?theme=light&one=interactive&width=360", 408, 600],
   ["estimate-dark", "?theme=dark&one=counter&width=520", 568, 590],
   ["estimate-light", "?theme=light&one=counter&width=520", 568, 590],
   ["apps-dark", "?theme=dark&one=slots&width=520", 568, 600],
