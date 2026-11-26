@@ -150,7 +150,7 @@ screen_entity: binary_sensor.your_phone_interactive
 
 ## Gets more with the Life Dashboard app
 
-The app is listed on Google Play as Health Data for Home Assistant, for €4.99 (US$4.99) once. The APK on GitHub and F-Droid is free. What it adds today:
+The app is on [Google Play](https://play.google.com/store/apps/details?id=com.owen282000.lifedashboard&referrer=utm_source%3Dgh-beforebed-readme%26utm_medium%3Dreadme) as Health Data for Home Assistant, for €4.99 (US$4.99) once. What it adds today:
 
 - **The night from your watch**, on Android and iPhone, with the time actually asleep instead of the time in bed.
 - **The estimate without a second app**: if Life Dashboard already sends your screen time, the card works with `screen_time_today` as it is. It finds the phone's sync times and yesterday's total on its own to place the minutes.
@@ -162,6 +162,8 @@ The app is listed on Google Play as Health Data for Home Assistant, for €4.99 
   </picture>
   <br><sub>Sample data, estimated from a day total that syncs once an hour. The footer of the card says the numbers are estimated.</sub>
 </p>
+
+Other ways to install: the same app is free as an APK [on GitHub](https://github.com/owen282000/life-dashboard-companion-app#install) and on [F-Droid](https://f-droid.org/packages/com.owen282000.lifedashboard/).
 
 What comes with a next version of the app and the integration:
 
